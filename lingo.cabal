@@ -1,50 +1,67 @@
-cabal-version:      3.0
-name:               lingo
-version:            0.1.0.0
+cabal-version: 3.0
+name: lingo
+version: 0.1.0.0
 -- synopsis:
 -- description:
-license:            BSD-3-Clause
-license-file:       LICENSE
-author:             Jan Hrček
-maintainer:         honza.hrk@gmail.com
--- copyright:
-category:           Language
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
--- extra-source-files:
+license: BSD-3-Clause
+license-file: LICENSE
+author: Jan Hrček
+maintainer: honza.hrk@gmail.com
+category: Language
+build-type: Simple
+extra-doc-files: CHANGELOG.md
 
-common warnings
-    ghc-options: -Wall
+common shared
+  default-language: GHC2024
+  ghc-options:
+    -Wall
+    -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+    -Wcompat
+    -Widentities
+    -Wredundant-constraints
+    -fhide-source-paths
+    -Wpartial-fields
+    -Wunrecognised-pragmas
+    -Wmissing-deriving-strategies
+    -Winvalid-haddock
+    -Woperator-whitespace
+    -Wredundant-bang-patterns
+
+  build-depends:
+    base ^>=4.21.0.0
 
 library
-    import:           warnings
-    exposed-modules:  MyLib
-    -- other-modules:
-    -- other-extensions:
-    build-depends:    base ^>=4.21.0.0
-    hs-source-dirs:   src
-    default-language: GHC2024
+  import: shared
+  hs-source-dirs: src
+  exposed-modules:
+      Lingo
+      Lingo.Repl.Command
+
+  build-depends:
+    haskeline,
+    megaparsec,
+    ollama-haskell ==0.2.0.0,
+    text,
+    transformers,
 
 executable lingo
-    import:           warnings
-    main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:
-        base ^>=4.21.0.0,
-        lingo
+  import: shared
+  main-is: Main.hs
+  ghc-options:
+    -threaded
+    -rtsopts
+    -with-rtsopts=-N
 
-    hs-source-dirs:   exe
-    default-language: GHC2024
+  build-depends:
+    lingo
+
+  hs-source-dirs: exe
 
 test-suite lingo-test
-    import:           warnings
-    default-language: GHC2024
-    -- other-modules:
-    -- other-extensions:
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   test
-    main-is:          Main.hs
-    build-depends:
-        base ^>=4.21.0.0,
-        lingo
+  import: shared
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Main.hs
+  build-depends:
+    lingo
