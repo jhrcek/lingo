@@ -34,8 +34,7 @@ common shared
     -Wredundant-bang-patterns
     -Wunused-packages
 
-  build-depends:
-    base ^>=4.21.0.0
+  build-depends: base ^>=4.21.0.0
 
 library
   import: shared
@@ -59,9 +58,7 @@ executable lingo
     -rtsopts
     -with-rtsopts=-N
 
-  build-depends:
-    lingo
-
+  build-depends: lingo
   hs-source-dirs: exe
 
 test-suite lingo-test

@@ -35,7 +35,7 @@ initState :: LingoState
 initState =
     LingoState
         { outputLanguage = English
-        , model = "gemma3:12b" -- "gemma3:12b"
+        , model = "gemma3:27b" -- "gemma3:12b"
         , messageHistory = [systemPrompt]
         }
 
@@ -67,6 +67,51 @@ definePrompt language input = userMessage $ case language of
     German -> "Definiere das Wort '" <> input <> "' in etwa 1-2 Sätzen. Wiederhole das definierte Wort nicht. Antworte auf Deutsch."
     Czech -> "Definuj slovo '" <> input <> "' v přibližně 1-2 větách. Neopakuj definované slovo. Odpověz česky."
 
+translatePrompt :: Language -> Language -> Text -> Maybe Message
+translatePrompt inLang outLang input
+    | inLang == outLang = Nothing
+    | otherwise = Just $ userMessage prompt
+  where
+    isWord = length (Text.words input) == 1
+    sourceLangName = languageNameIn inLang outLang
+    wordOrPhrase = wordOrPhraseIn outLang
+
+    wordOrPhraseIn :: Language -> Text
+    wordOrPhraseIn lang = case lang of
+        Portuguese -> if isWord then "palavra" else "expressão"
+        English -> if isWord then "word" else "phrase"
+        German -> if isWord then "Wort" else "Ausdruck"
+        Czech -> if isWord then "slovo" else "výraz"
+
+    languageNameIn :: Language -> Language -> Text
+    languageNameIn sourceLang targetLang = case targetLang of
+        Portuguese -> case sourceLang of
+            Portuguese -> "português"
+            English -> "inglesa"
+            German -> "alemã"
+            Czech -> "checa"
+        English -> case sourceLang of
+            Portuguese -> "Portuguese"
+            English -> "English"
+            German -> "German"
+            Czech -> "Czech"
+        German -> case sourceLang of
+            Portuguese -> "portugiesische"
+            English -> "englische"
+            German -> "deutsche"
+            Czech -> "tschechische"
+        Czech -> case sourceLang of
+            Portuguese -> "portugalské"
+            English -> "anglické"
+            German -> "německé"
+            Czech -> "české"
+
+    prompt = case outLang of
+        Portuguese -> "Traduza a " <> wordOrPhrase <> " " <> sourceLangName <> " '" <> input <> "' para o português."
+        English -> "Translate the " <> sourceLangName <> " " <> wordOrPhrase <> " '" <> input <> "' to English."
+        German -> "Übersetze das " <> sourceLangName <> " " <> wordOrPhrase <> " '" <> input <> "' ins Deutsche."
+        Czech -> "Přelož " <> sourceLangName <> " " <> wordOrPhrase <> " '" <> input <> "' do češtiny."
+
 usageMessage :: String
 usageMessage =
     unlines
@@ -94,7 +139,6 @@ getHistory = do
 repl :: Lingo ()
 repl = do
     outputLang <- lift $ gets outputLanguage
-
     minput <- getInputLine $ Text.unpack $ toIso639LanguageCode outputLang <> "> "
     case minput of
         Nothing -> return ()
@@ -104,14 +148,17 @@ repl = do
                     outputStrLn $ errorBundlePretty err
                     repl
                 Right cmd -> do
-                    let todo = outputStrLn $ show cmd
                     case cmd of
                         SetLanguage lang ->
                             lift $ modify (\s -> s{outputLanguage = lang})
                         Define userInput ->
                             chatPrompt $ definePrompt outputLang userInput
-                        Translate _lang1 _str ->
-                            todo
+                        Translate inLang userInput ->
+                            case translatePrompt inLang outputLang userInput of
+                                Nothing ->
+                                    outputStrLn "No translation needed, input language is the same as output language."
+                                Just prompt ->
+                                    chatPrompt prompt
                         Example userInput ->
                             chatPrompt $ examplePrompt outputLang userInput
                         RawPrompt userInput ->
