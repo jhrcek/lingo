@@ -14,6 +14,8 @@ import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
 import Data.Ollama.Chat
+import Data.Ollama.List (ModelInfo (name), Models (Models), listM)
+import Data.Ollama.Load (loadGenModelM)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -26,7 +28,7 @@ type Lingo a = InputT (StateT LingoState IO) a
 
 data LingoState = LingoState
     { outputLanguage :: Language
-    , model :: Text -- TODO add command to change model
+    , model :: Text
     , messageHistory :: [Message]
     -- ^ History of messages in reverse order
     }
@@ -35,7 +37,7 @@ initState :: LingoState
 initState =
     LingoState
         { outputLanguage = English
-        , model = "gemma3:27b" -- "gemma3:12b"
+        , model = "gemma3:12b"
         , messageHistory = [systemPrompt]
         }
 
@@ -119,8 +121,9 @@ usageMessage =
         , "  :d, :define <string>               generate a definition of the word/expression <string>"
         , "  :e, :example <string>              generate an example sentence using the word/expression <string>"
         , "  :h, :help                          show this help message"
-        , "  :lang <language code>              set the output language (en, pt, de, cs)"
         , "  :q, :quit                          exit the REPL"
+        , "  :set lang <language code>          set the output language (en, pt, de, cs)"
+        , "  :set model                         interactive model selection"
         , "  :t, :translate [inlang] <string>   translate <string> to output language - specify input language to disambiguate"
         , "  <RAW_PROMPT>                       send prompt to the underlying LLM as is"
         ]
@@ -149,8 +152,19 @@ repl = do
                     repl
                 Right cmd -> do
                     case cmd of
-                        SetLanguage lang ->
-                            lift $ modify (\s -> s{outputLanguage = lang})
+                        Set setting -> case setting of
+                            SetLanguage lang ->
+                                lift $ modify (\s -> s{outputLanguage = lang})
+                            SetModel -> do
+                                selectedModel <- selectModelInteractively
+                                case selectedModel of
+                                    Just model -> do
+                                        lift $ modify $ \s -> s{Lingo.model = model}
+                                        outputStrLn $ "Loading model " ++ Text.unpack model ++ " ..."
+                                        _ <- loadGenModelM model
+                                        outputStrLn "Loaded"
+                                    Nothing ->
+                                        outputStrLn "Model selection cancelled."
                         Define userInput ->
                             chatPrompt $ definePrompt outputLang userInput
                         Translate inLang userInput ->
@@ -169,6 +183,37 @@ repl = do
                             pure ()
 
                     when (cmd /= Quit) repl
+
+selectModelInteractively :: Lingo (Maybe Text)
+selectModelInteractively = do
+    resp <- listM Nothing
+    case resp of
+        Left err -> do
+            outputStrLn $ "Error listing models: " ++ show err
+            pure Nothing
+        Right (Models models)
+            | null models -> do
+                outputStrLn "No models available."
+                pure Nothing
+            | otherwise -> do
+                let modelNames = List.sort $ fmap name models
+                outputStrLn "Available models:"
+                for_ (zip [1 :: Int ..] modelNames) $ \(i, modelName) ->
+                    outputStrLn $ "  " ++ show i ++ ") " ++ Text.unpack modelName
+                let promptForChoice = do
+                        minput <- getInputLine "Enter model number (or press Enter to cancel): "
+                        case minput of
+                            Nothing -> pure Nothing
+                            Just "" -> pure Nothing
+                            Just input ->
+                                case reads input of
+                                    [(n, "")]
+                                        | 0 < n && n <= length modelNames ->
+                                            pure $ Just $ modelNames !! (n - 1)
+                                    _ -> do
+                                        outputStrLn $ "Invalid choice. Please enter a number between 1 and " ++ show (length models) ++ "."
+                                        promptForChoice
+                promptForChoice
 
 chatPrompt :: Message -> Lingo ()
 chatPrompt userMsg = do
@@ -192,7 +237,7 @@ chatPrompt userMsg = do
                         , hFlush stdout
                         )
                 }
-    resp <- liftIO $ chat ops Nothing
+    resp <- chatM ops Nothing
     case resp of
         Left err -> outputStrLn $ "Error: " ++ show err
         Right chatResponse ->
@@ -206,4 +251,5 @@ chatPrompt userMsg = do
 main :: IO ()
 main = do
     _ <- execStateT (runInputT defaultSettings repl) initState
+    -- TODO load model here
     pure ()

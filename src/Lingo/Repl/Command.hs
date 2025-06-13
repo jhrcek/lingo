@@ -3,6 +3,7 @@
 module Lingo.Repl.Command
     ( Language (..)
     , Command (..)
+    , Setting (..)
     , commandP
     , toIso639LanguageCode
     ) where
@@ -32,8 +33,13 @@ toIso639LanguageCode = \case
     German -> "de"
     Czech -> "cs"
 
-data Command
+data Setting
     = SetLanguage Language
+    | SetModel
+    deriving stock (Show, Eq)
+
+data Command
+    = Set Setting
     | Translate Language Text
     | Example Text
     | Define Text
@@ -73,11 +79,21 @@ parseDefine = do
     _ <- space1
     Define <$> restOfLine
 
-parseSetLanguage :: Parser Command
-parseSetLanguage = do
-    _ <- string ":lang"
+parseSet :: Parser Command
+parseSet = do
+    _ <- string ":set"
     _ <- space1
-    SetLanguage <$> languageP
+    setting <-
+        choice
+            [ do
+                _ <- string "lang"
+                _ <- space1
+                SetLanguage <$> languageP
+            , do
+                _ <- string "model"
+                pure SetModel
+            ]
+    pure $ Set setting
 
 parseHelp :: Parser Command
 parseHelp = choice [string ":help", string ":h"] $> Help
@@ -101,7 +117,7 @@ commandP = do
             , parseExample
             , parseHelp
             , parseQuit
-            , parseSetLanguage
+            , parseSet
             , parseRawPrompt
             ]
     eof

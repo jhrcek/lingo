@@ -20,7 +20,7 @@ commandParserTests :: TestTree
 commandParserTests =
     testGroup
         "Command Parser Tests"
-        [ testGroup "SetLanguage commands" setLanguageTests
+        [ testGroup "Set commands" setCommandTests
         , testGroup "Translate commands" translateTests
         , testGroup "Example commands" exampleTests
         , testGroup "Define commands" defineTests
@@ -29,16 +29,18 @@ commandParserTests =
         , testGroup "Parse failures" parseFailureTests
         ]
 
-setLanguageTests :: [TestTree]
-setLanguageTests =
-    [ testCase ":lang pt" $
-        parseSuccess ":lang pt" (SetLanguage Portuguese)
-    , testCase ":lang en" $
-        parseSuccess ":lang en" (SetLanguage English)
-    , testCase ":lang de" $
-        parseSuccess ":lang de" (SetLanguage German)
-    , testCase ":lang cs" $
-        parseSuccess ":lang cs" (SetLanguage Czech)
+setCommandTests :: [TestTree]
+setCommandTests =
+    [ testCase ":set lang pt" $
+        parseSuccess ":set lang pt" (Set (SetLanguage Portuguese))
+    , testCase ":set lang en" $
+        parseSuccess ":set lang en" (Set (SetLanguage English))
+    , testCase ":set lang de" $
+        parseSuccess ":set lang de" (Set (SetLanguage German))
+    , testCase ":set lang cs" $
+        parseSuccess ":set lang cs" (Set (SetLanguage Czech))
+    , testCase ":set model" $
+        parseSuccess ":set model" (Set SetModel)
     ]
 
 translateTests :: [TestTree]
@@ -104,7 +106,7 @@ parseFailureTests =
             1 | <empty line>
               | ^
             unexpected end of input
-            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":lang", ":q", ":quit", ":t", or ":translate"
+            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":q", ":quit", ":set", ":t", or ":translate"
             """
     , testCase "unknown command" $
         parseFailure
@@ -115,71 +117,49 @@ parseFailureTests =
             1 | :unknown
               | ^^^^^^^^
             unexpected ":unknown"
-            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":lang", ":q", ":quit", ":t", or ":translate"
+            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":q", ":quit", ":set", ":t", or ":translate"
             """
-    , testCase ":lang without argument" $
+    , testCase ":set without argument" $
         parseFailure
-            ":lang"
+            ":set"
+            """
+            test:1:5:
+              |
+            1 | :set
+              |     ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":set with invalid subcommand" $
+        parseFailure
+            ":set invalid"
             """
             test:1:6:
               |
-            1 | :lang
-              |      ^
+            1 | :set invalid
+              |      ^^^^^
+            unexpected "inval"
+            expecting "lang", "model", or white space
+            """
+    , testCase ":set lang without argument" $
+        parseFailure
+            ":set lang"
+            """
+            test:1:10:
+              |
+            1 | :set lang
+              |          ^
             unexpected end of input
             expecting white space
             """
-    , testCase ":lang with invalid language" $
+    , testCase ":set lang with invalid language" $
         parseFailure
-            ":lang xx"
-            """
-            test:1:7:
-              |
-            1 | :lang xx
-              |       ^^
-            unexpected "xx"
-            expecting Language: pt, en, de, cs or white space
-            """
-    , testCase ":translate without arguments" $
-        parseFailure
-            ":translate"
+            ":set lang xx"
             """
             test:1:11:
               |
-            1 | :translate
-              |           ^
-            unexpected end of input
-            expecting white space
-            """
-    , testCase ":t without arguments" $
-        parseFailure
-            ":t"
-            """
-            test:1:3:
-              |
-            1 | :t
-              |   ^
-            unexpected end of input
-            expecting white space
-            """
-    , testCase ":translate with invalid language" $
-        parseFailure
-            ":translate xx hello"
-            """
-            test:1:12:
-              |
-            1 | :translate xx hello
-              |            ^^
-            unexpected "xx"
-            expecting Language: pt, en, de, cs or white space
-            """
-    , testCase ":t with invalid language" $
-        parseFailure
-            ":t xx hello"
-            """
-            test:1:4:
-              |
-            1 | :t xx hello
-              |    ^^
+            1 | :set lang xx
+              |           ^^
             unexpected "xx"
             expecting Language: pt, en, de, cs or white space
             """
@@ -258,7 +238,7 @@ parseFailureTests =
             1 | :
               | ^
             unexpected ':'
-            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":lang", ":q", ":quit", ":t", or ":translate"
+            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":q", ":quit", ":set", ":t", or ":translate"
             """
     ]
 

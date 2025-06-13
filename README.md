@@ -26,8 +26,9 @@ Available commands:
   :d, :define <string>               generate a definition of the word/expression <string>
   :e, :example <string>              generate an example sentence using the word/expression <string>
   :h, :help                          show this help message
-  :lang <language code>              set the output language (en, pt, de, cs)
   :q, :quit                          exit the REPL
+  :set lang <language code>          set the output language (en, pt, de, cs)
+  :set model                         interactive model selection
   :t, :translate [inlang] <string>   translate <string> to output language - specify input language to disambiguate
   <RAW_PROMPT>                       send prompt to the underlying LLM as is
 ```
