@@ -126,6 +126,8 @@ chatPrompt userMsg = do
     model <- lift $ gets Lingo.model
     appendHistory userMsg
     msgs <- getHistory
+    -- A workaround to allow both printing each response chunk as it comes in, while still allowing
+    -- appending the complete final response to the history as a single message.
     responseChunksRef <- liftIO $ newIORef []
     let ops =
             defaultChatOps
@@ -133,10 +135,11 @@ chatPrompt userMsg = do
                 , messages = msgs
                 , stream =
                     Just
-                        ( \resp ->
+                        ( \resp -> do
                             for_ (message resp) $ \msg -> do
                                 Text.putStr $ content msg
                                 modifyIORef' responseChunksRef (content msg :)
+                            when (done resp) $ Text.putStrLn ""
                         , hFlush stdout
                         )
                 }
@@ -149,7 +152,6 @@ chatPrompt userMsg = do
                     outputStrLn $ Text.unpack $ "Oops, " <> model <> " didn't provide any response." -- TODO handle this better?
                 Just msg -> do
                     responseChunks <- liftIO $ readIORef responseChunksRef
-                    liftIO $ Text.putStrLn ""
                     appendHistory msg{content = Text.concat $ List.reverse responseChunks}
 
 main :: IO ()
