@@ -36,8 +36,8 @@ data LingoState = LingoState
 initState :: LingoState
 initState =
     LingoState
-        { outputLanguage = English
-        , model = "gemma3:12b"
+        { outputLanguage = Portuguese
+        , model = "gemma3:27b"
         , messageHistory = [systemPrompt]
         }
 

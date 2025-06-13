@@ -163,6 +163,50 @@ parseFailureTests =
             unexpected "xx"
             expecting Language: pt, en, de, cs or white space
             """
+    , testCase ":translate without arguments" $
+        parseFailure
+            ":translate"
+            """
+            test:1:11:
+              |
+            1 | :translate
+              |           ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":t without arguments" $
+        parseFailure
+            ":t"
+            """
+            test:1:3:
+              |
+            1 | :t
+              |   ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":translate with invalid language" $
+        parseFailure
+            ":translate xx hello"
+            """
+            test:1:12:
+              |
+            1 | :translate xx hello
+              |            ^^
+            unexpected "xx"
+            expecting Language: pt, en, de, cs or white space
+            """
+    , testCase ":t with invalid language" $
+        parseFailure
+            ":t xx hello"
+            """
+            test:1:4:
+              |
+            1 | :t xx hello
+              |    ^^
+            unexpected "xx"
+            expecting Language: pt, en, de, cs or white space
+            """
     , testCase ":e without argument" $
         parseFailure
             ":e"
