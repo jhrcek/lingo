@@ -1,8 +1,8 @@
 cabal-version: 3.0
 name: lingo
 version: 0.1.0.0
--- synopsis:
--- description:
+synopsis: Ollama wrapper with shortcuts for language learning
+description: A simple Ollama wrapper with few convenience shortcuts for language learning
 license: BSD-3-Clause
 license-file: LICENSE
 author: Jan Hrček
@@ -10,6 +10,11 @@ maintainer: honza.hrk@gmail.com
 category: Language
 build-type: Simple
 extra-doc-files: CHANGELOG.md
+tested-with: ghc ==9.12.2
+
+source-repository head
+  type: git
+  location: https://github.com/jhrcek/lingo.git
 
 common shared
   default-language: GHC2024
@@ -40,11 +45,11 @@ library
     Lingo.Repl.Command
 
   build-depends:
-    haskeline,
-    megaparsec,
-    ollama-haskell ==0.2.0.0,
-    text,
-    transformers,
+    haskeline >=0.8.2 && <0.9,
+    megaparsec >=9.7.0 && <9.8,
+    ollama-haskell >=0.2.0 && <0.3,
+    text >=2.1.2 && <2.2,
+    transformers >=0.6.1 && <0.7,
 
 executable lingo
   import: shared
