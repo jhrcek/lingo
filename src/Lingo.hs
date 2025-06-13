@@ -77,7 +77,7 @@ usageMessage =
         , "  :lang <language code>              set the output language (en, pt, de, cs)"
         , "  :q, :quit                          exit the REPL"
         , "  :t, :translate [inlang] <string>   translate <string> to output language - specify input language to disambiguate"
-        , "  <RAW_PROMPT>                       send prompt to the underlying LLM as is" -- TODO implement this
+        , "  <RAW_PROMPT>                       send prompt to the underlying LLM as is"
         ]
 
 appendHistory :: Message -> Lingo ()
@@ -114,6 +114,8 @@ repl = do
                             todo
                         Example userInput ->
                             chatPrompt $ examplePrompt outputLang userInput
+                        RawPrompt userInput ->
+                            chatPrompt $ userMessage userInput
                         Help ->
                             outputStrLn usageMessage
                         Quit ->

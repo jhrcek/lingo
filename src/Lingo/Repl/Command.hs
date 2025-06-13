@@ -12,8 +12,8 @@ import Data.Functor (($>))
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void (Void)
-import Text.Megaparsec (Parsec, anySingle, choice, eof, manyTill, (<?>))
-import Text.Megaparsec.Char (space1, string)
+import Text.Megaparsec (Parsec, anySingle, choice, eof, manyTill, notFollowedBy, some, (<?>))
+import Text.Megaparsec.Char (char, space1, string)
 
 data Language
     = Portuguese
@@ -38,8 +38,8 @@ data Command
     | Example Text
     | Define Text
     | Help
-    | -- | RawPrompt Text -- TODO implement this, but in a way that we get parse errors for incorrect commands
-      Quit
+    | RawPrompt Text
+    | Quit
     deriving stock (Show, Eq)
 
 type Parser = Parsec Void Text
@@ -79,12 +79,18 @@ parseSetLanguage = do
     _ <- space1
     SetLanguage <$> languageP
 
-
 parseHelp :: Parser Command
 parseHelp = choice [string ":help", string ":h"] $> Help
 
 parseQuit :: Parser Command
 parseQuit = choice [string ":quit", string ":q"] $> Quit
+
+parseRawPrompt :: Parser Command
+parseRawPrompt = do
+    notFollowedBy (char ':')
+    content <- Text.pack <$> some anySingle
+    eof
+    pure $ RawPrompt content
 
 commandP :: Parser Command
 commandP = do
@@ -96,6 +102,7 @@ commandP = do
             , parseHelp
             , parseQuit
             , parseSetLanguage
+            , parseRawPrompt
             ]
     eof
     return cmd

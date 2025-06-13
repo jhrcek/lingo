@@ -1,3 +1,4 @@
+{-# LANGUAGE MultilineStrings #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
@@ -7,6 +8,7 @@ import Lingo.Repl.Command
 import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Megaparsec (parse)
+import Text.Megaparsec.Error (errorBundlePretty)
 
 main :: IO ()
 main = defaultMain tests
@@ -23,6 +25,7 @@ commandParserTests =
         , testGroup "Example commands" exampleTests
         , testGroup "Define commands" defineTests
         , testGroup "Simple commands" simpleCommandTests
+        , testGroup "Raw prompt commands" rawPromptTests
         , testGroup "Parse failures" parseFailureTests
         ]
 
@@ -78,22 +81,185 @@ simpleCommandTests =
     , testCase ":q" $ parseSuccess ":q" Quit
     ]
 
+rawPromptTests :: [TestTree]
+rawPromptTests =
+    [ testCase "simple raw prompt" $
+        parseSuccess "hello world" (RawPrompt "hello world")
+    , testCase "raw prompt with numbers" $
+        parseSuccess "Tell me about 42" (RawPrompt "Tell me about 42")
+    , testCase "raw prompt with special characters" $
+        parseSuccess "What about @#$%?" (RawPrompt "What about @#$%?")
+    , testCase "single character raw prompt" $
+        parseSuccess "a" (RawPrompt "a")
+    ]
+
 parseFailureTests :: [TestTree]
 parseFailureTests =
-    [ testCase "empty input" $ parseFailure ""
-    , testCase "unknown command" $ parseFailure ":unknown"
-    , testCase ":lang without argument" $ parseFailure ":lang"
-    , testCase ":lang with invalid language" $ parseFailure ":lang xx"
-    , testCase ":translate without arguments" $ parseFailure ":translate"
-    , testCase ":t without arguments" $ parseFailure ":t"
-    , testCase ":translate with invalid language" $ parseFailure ":translate xx hello"
-    , testCase ":t with invalid language" $ parseFailure ":t xx hello"
-    , testCase ":e without argument" $ parseFailure ":e"
-    , testCase ":example without argument" $ parseFailure ":example"
-    , testCase ":d without argument" $ parseFailure ":d"
-    , testCase ":define without argument" $ parseFailure ":define"
-    , testCase "extra text after :help" $ parseFailure ":help extra"
-    , testCase "extra text after :h" $ parseFailure ":h extra"
+    [ testCase "empty input" $
+        parseFailure
+            ""
+            """
+            test:1:1:
+              |
+            1 | <empty line>
+              | ^
+            unexpected end of input
+            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":lang", ":q", ":quit", ":t", or ":translate"
+            """
+    , testCase "unknown command" $
+        parseFailure
+            ":unknown"
+            """
+            test:1:1:
+              |
+            1 | :unknown
+              | ^^^^^^^^
+            unexpected ":unknown"
+            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":lang", ":q", ":quit", ":t", or ":translate"
+            """
+    , testCase ":lang without argument" $
+        parseFailure
+            ":lang"
+            """
+            test:1:6:
+              |
+            1 | :lang
+              |      ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":lang with invalid language" $
+        parseFailure
+            ":lang xx"
+            """
+            test:1:7:
+              |
+            1 | :lang xx
+              |       ^^
+            unexpected "xx"
+            expecting Language: pt, en, de, cs or white space
+            """
+    , testCase ":translate without arguments" $
+        parseFailure
+            ":translate"
+            """
+            test:1:11:
+              |
+            1 | :translate
+              |           ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":t without arguments" $
+        parseFailure
+            ":t"
+            """
+            test:1:3:
+              |
+            1 | :t
+              |   ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":translate with invalid language" $
+        parseFailure
+            ":translate xx hello"
+            """
+            test:1:12:
+              |
+            1 | :translate xx hello
+              |            ^^
+            unexpected "xx"
+            expecting Language: pt, en, de, cs or white space
+            """
+    , testCase ":t with invalid language" $
+        parseFailure
+            ":t xx hello"
+            """
+            test:1:4:
+              |
+            1 | :t xx hello
+              |    ^^
+            unexpected "xx"
+            expecting Language: pt, en, de, cs or white space
+            """
+    , testCase ":e without argument" $
+        parseFailure
+            ":e"
+            """
+            test:1:3:
+              |
+            1 | :e
+              |   ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":example without argument" $
+        parseFailure
+            ":example"
+            """
+            test:1:9:
+              |
+            1 | :example
+              |         ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":d without argument" $
+        parseFailure
+            ":d"
+            """
+            test:1:3:
+              |
+            1 | :d
+              |   ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase ":define without argument" $
+        parseFailure
+            ":define"
+            """
+            test:1:8:
+              |
+            1 | :define
+              |        ^
+            unexpected end of input
+            expecting white space
+            """
+    , testCase "extra text after :help" $
+        parseFailure
+            ":help extra"
+            """
+            test:1:6:
+              |
+            1 | :help extra
+              |      ^
+            unexpected space
+            expecting end of input
+            """
+    , testCase "extra text after :h" $
+        parseFailure
+            ":h extra"
+            """
+            test:1:3:
+              |
+            1 | :h extra
+              |   ^
+            unexpected space
+            expecting end of input
+            """
+    , testCase "colon only" $
+        parseFailure
+            ":"
+            """
+            test:1:1:
+              |
+            1 | :
+              | ^
+            unexpected ':'
+            expecting ":d", ":define", ":e", ":example", ":h", ":help", ":lang", ":q", ":quit", ":t", or ":translate"
+            """
     ]
 
 parseSuccess :: Text -> Command -> Assertion
@@ -102,8 +268,8 @@ parseSuccess input expected =
         Left err -> assertFailure $ "Expected successful parse, but got error: " ++ show err
         Right result -> assertEqual ("Parsing: " ++ show input) expected result
 
-parseFailure :: Text -> Assertion
-parseFailure input =
+parseFailure :: Text -> String -> Assertion
+parseFailure input expectedErr =
     case parse commandP "test" input of
-        Left _ -> return () -- Expected failure
+        Left e -> errorBundlePretty e @?= expectedErr ++ "\n"
         Right result -> assertFailure $ "Expected parse failure, but got: " ++ show result
