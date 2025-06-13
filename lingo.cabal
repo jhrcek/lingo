@@ -27,6 +27,7 @@ common shared
     -Winvalid-haddock
     -Woperator-whitespace
     -Wredundant-bang-patterns
+    -Wunused-packages
 
   build-depends:
     base ^>=4.21.0.0
@@ -35,8 +36,8 @@ library
   import: shared
   hs-source-dirs: src
   exposed-modules:
-      Lingo
-      Lingo.Repl.Command
+    Lingo
+    Lingo.Repl.Command
 
   build-depends:
     haskeline,
@@ -64,4 +65,8 @@ test-suite lingo-test
   hs-source-dirs: test
   main-is: Main.hs
   build-depends:
-    lingo
+    lingo,
+    megaparsec,
+    tasty,
+    tasty-hunit,
+    text,

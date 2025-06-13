@@ -7,7 +7,9 @@ module Lingo where
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.State.Strict (StateT, execStateT, gets, modify)
+import Data.Foldable (for_)
+import Data.IORef (modifyIORef', newIORef, readIORef)
 import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
@@ -17,6 +19,7 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Lingo.Repl.Command
 import System.Console.Haskeline (InputT, defaultSettings, getInputLine, outputStrLn, runInputT)
+import System.IO (hFlush, stdout)
 import Text.Megaparsec (errorBundlePretty, parse)
 
 type Lingo a = InputT (StateT LingoState IO) a
@@ -68,13 +71,12 @@ usageMessage :: String
 usageMessage =
     unlines
         [ "Available commands:"
-        , "  :d <string>                        generate a definition of the word/expression <string>"
-        , "  :e <string>                        generate an example sentence using the word/expression <string>"
-        , "  :help                              show this help message"
+        , "  :d, :define <string>               generate a definition of the word/expression <string>"
+        , "  :e, :example <string>              generate an example sentence using the word/expression <string>"
+        , "  :h, :help                          show this help message"
         , "  :lang <language code>              set the output language (en, pt, de, cs)"
-        , "  :more                              generate another :definition or :e" -- TODO implement this
-        , "  :quit                              exit the REPL"
-        , "  :translate [inlang] <string>       translate <string> to output language - specify input language to disambiguate"
+        , "  :q, :quit                          exit the REPL"
+        , "  :t, :translate [inlang] <string>   translate <string> to output language - specify input language to disambiguate"
         , "  <RAW_PROMPT>                       send prompt to the underlying LLM as is" -- TODO implement this
         ]
 
@@ -112,8 +114,6 @@ repl = do
                             todo
                         Example userInput ->
                             chatPrompt $ examplePrompt outputLang userInput
-                        More ->
-                            todo
                         Help ->
                             outputStrLn usageMessage
                         Quit ->
@@ -126,22 +126,32 @@ chatPrompt userMsg = do
     model <- lift $ gets Lingo.model
     appendHistory userMsg
     msgs <- getHistory
+    responseChunksRef <- liftIO $ newIORef []
     let ops =
             defaultChatOps
                 { chatModelName = model
                 , messages = msgs
-                -- , stream = Just ... -- TODO implement streaming by sending to channel and reading from it (needed bc ollama doesn't allow streaming callbacks in InputT)
+                , stream =
+                    Just
+                        ( \resp ->
+                            for_ (message resp) $ \msg -> do
+                                Text.putStr $ content msg
+                                modifyIORef' responseChunksRef (content msg :)
+                        , hFlush stdout
+                        )
                 }
-
     resp <- liftIO $ chat ops Nothing
     case resp of
         Left err -> outputStrLn $ "Error: " ++ show err
         Right chatResponse ->
             case message chatResponse of
-                Nothing -> outputStrLn $ Text.unpack $ "Oops, " <> model <> " didn't provide any response." -- TODO handle this better?
+                Nothing ->
+                    outputStrLn $ Text.unpack $ "Oops, " <> model <> " didn't provide any response." -- TODO handle this better?
                 Just msg -> do
-                    liftIO $ Text.putStrLn $ content msg
-                    appendHistory msg
+                    responseChunks <- liftIO $ readIORef responseChunksRef
+                    liftIO $ Text.putStrLn ""
+                    appendHistory msg{content = Text.concat $ List.reverse responseChunks}
+
 main :: IO ()
 main = do
     _ <- execStateT (runInputT defaultSettings repl) initState

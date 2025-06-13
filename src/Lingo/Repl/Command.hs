@@ -37,10 +37,9 @@ data Command
     | Translate Language Text
     | Example Text
     | Define Text
-    | More
     | Help
-    -- | RawPrompt Text -- TODO implement this, but in a way that we get parse errors for incorrect commands
-    | Quit
+    | -- | RawPrompt Text -- TODO implement this, but in a way that we get parse errors for incorrect commands
+      Quit
     deriving stock (Show, Eq)
 
 type Parser = Parsec Void Text
@@ -56,7 +55,7 @@ restOfLine =
 
 parseTranslate :: Parser Command
 parseTranslate = do
-    _ <- string ":translate"
+    _ <- choice [string ":translate", string ":t"]
     _ <- space1
     sourceLang <- languageP
     _ <- space1
@@ -64,13 +63,13 @@ parseTranslate = do
 
 parseExample :: Parser Command
 parseExample = do
-    _ <- string ":e"
+    _ <- choice [string ":example", string ":e"]
     _ <- space1
     Example <$> restOfLine
 
 parseDefine :: Parser Command
 parseDefine = do
-    _ <- string ":d" -- TODO make it possible to use :d or :def or :define
+    _ <- choice [string ":define", string ":d"]
     _ <- space1
     Define <$> restOfLine
 
@@ -80,14 +79,12 @@ parseSetLanguage = do
     _ <- space1
     SetLanguage <$> languageP
 
-parseMore :: Parser Command
-parseMore = string ":more" $> More
 
 parseHelp :: Parser Command
-parseHelp = string ":help" $> Help
+parseHelp = choice [string ":help", string ":h"] $> Help
 
 parseQuit :: Parser Command
-parseQuit = string ":quit" $> Quit
+parseQuit = choice [string ":quit", string ":q"] $> Quit
 
 commandP :: Parser Command
 commandP = do
@@ -96,7 +93,6 @@ commandP = do
             [ parseDefine
             , parseTranslate
             , parseExample
-            , parseMore
             , parseHelp
             , parseQuit
             , parseSetLanguage
